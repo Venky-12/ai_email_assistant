@@ -44,44 +44,44 @@ function injectButton() {
   console.log("Toolbar found, creating AI button...");
   const button = createAIButton();
 
-  button.addEventListener('click', async () => {
-    try {
+  button.addEventListener('click', () => {
       button.innerText = 'Generating...';
       button.style.opacity = '0.7';
       button.disabled = true;
 
       const emailContent = getEmailContent();
 
-      const response = await fetch('http://localhost:8080/api/email/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailContent:emailContent, tone: "Professional" })
-      });
+      chrome.runtime.sendMessage(
+        {
+          type: "GENERATE_REPLY",
+          payload: {
+            emailContent: emailContent,
+            tone: "Professional"
+          }
+        },
+        (response) => {
+          try {
+            if (response && response.success) {
+              const composeBox = document.querySelector('[role="textbox"][g_editable="true"]');
+              if (composeBox) {
+                composeBox.focus();
+                composeBox.innerText = response.data;
+              } else {
+                console.error('Compose box not found');
+              }
+            } else {
+              alert("Failed to generate reply");
+              console.error(response?.error);
+            }
+          } finally {
+            button.innerText = 'AI Reply';
+            button.style.opacity = '1';
+            button.disabled = false;
+          }
+        }
+      );
+});
 
-      if (!response.ok) throw new Error('API request failed');
-
-      const generatedReply = await response.text();
-
-      console.log(generatedReply);
-      
-      const composeBox = document.querySelector('[role="textbox"][g_editable="true"]');
-
-      if (composeBox) {
-        composeBox.focus();
-        composeBox.innerText = generatedReply;
-      } else {
-        console.error('Compose box not found');
-      }
-
-    } catch (error) {
-      alert('Failed to generate reply');
-      console.error(error);
-    } finally {
-      button.innerText = 'AI Reply';
-      button.style.opacity = '1';
-      button.disabled = false;
-    }
-  });
 
   toolbar.insertBefore(button, toolbar.firstChild);
 }
